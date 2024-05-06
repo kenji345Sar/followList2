@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\UserRelation;
-
+use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class UserRelationController extends Controller
 {
@@ -15,48 +16,57 @@ class UserRelationController extends Controller
     {
         $userId = 10; // 表示するユーザーIDを設定
     
-        // ユーザーがフォローしている人たちのデータを取得し、加工
+        // フォローしているユーザーのデータを取得
         $following = UserRelation::where('user_id', $userId)
-                        ->get(['target_user_id', 'is_following', 'is_blocking'])
-                        ->keyBy('target_user_id')
-                        ->map(function ($item) {
-                            return [
-                                'follow' => $item->is_following,
-                                'follower' => false,
-                                'mutual' => false,
-                                'blocking' => $item->is_blocking,
-                                'blocked_by' => false  // 初期状態では不明
-                            ];
-                        });
-
-        // ユーザーをフォローしている人たちのデータを取得し、加工
+                            ->get(['target_user_id', 'is_following', 'is_blocking'])
+                            ->keyBy('target_user_id');
+    
+        // フォロワーのデータを取得
         $followers = UserRelation::where('target_user_id', $userId)
-                        ->get(['user_id', 'is_following', 'is_blocking'])
-                        ->each(function ($item) use ($following) {
-                            // 既存のデータの更新、または新しいデータの追加
-                            $relation = $following->get($item->user_id, [
-                                'follow' => false,
-                                'follower' => $item->is_following && !$item->is_blocking,
-                                'mutual' => false,
-                                'blocking' => false,
-                                'blocked_by' => false
-                            ]);
+                            ->get(['user_id', 'is_following', 'is_blocking'])
+                            ->keyBy('user_id');
 
-                            $relation['follower'] = $item->is_following && !$item->is_blocking;
-                            $relation['mutual'] = $relation['follow'] && $item->is_following;
-                            $relation['blocked_by'] = $item->is_blocking && !$item->is_following;
-
-                            $following->put($item->user_id, $relation);
-                        });
-
-        // 配列をキー（ID）で昇順にソート
-        $following = $following->sortKeys();
-
-        return view('user_relations.index', ['relations' => $following]);
-
-
+        // 全ユーザーIDの一覧を取得
+        $allUserIds = $following->keys()->merge($followers->keys())->unique();
+        
+        // 全データを統合
+        $allRelations = $allUserIds->mapWithKeys(function ($id) use ($following, $followers) {
+            $isFollowing = $following->has($id) && $following[$id]->is_following;
+            $isFollower = $followers->has($id) && $followers[$id]->is_following;
+            $isMutual = $isFollowing && $isFollower;
+            $isBlocking = $following->has($id) ? $following[$id]->is_blocking : false;
+            $isBlockedBy = $followers->has($id) ? $followers[$id]->is_blocking : false;
+    
+            return [$id => [
+                'follow' => $isFollowing ? '○' : '',
+                'follower' => $isFollower ? '○' : '',
+                'mutual' => $isMutual ? '○' : '',
+                'blocking' => $isBlocking ? '○' : '',
+                'blocked_by' => $isBlockedBy ? '○' : ''
+            ]];
+        })->sortKeys();  // IDでソート
+    
+        // ページネーションの設定
+        $perPage = 3;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $currentItems = $allRelations->slice(($currentPage - 1) * $perPage, $perPage)->all();
+    
+        // LengthAwarePaginatorを使ってページネーションを適用
+        $paginatedItems = new LengthAwarePaginator(
+            $currentItems, 
+            $allRelations->count(), 
+            $perPage, 
+            $currentPage, [
+            'path' => LengthAwarePaginator::resolveCurrentPath(),
+            ]
+        );
+    
+        return view('user_relations.index', ['relations' => $paginatedItems]);
     }
     
+    
+    
+
     
     
     

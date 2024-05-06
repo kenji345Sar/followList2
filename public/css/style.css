@@ -1,0 +1,19 @@
+
+svg {
+  width: 20px; /* SVGのサイズ調整 */
+  height: 20px;
+}
+
+
+.relative.z-0.inline-flex.rtl\:flex-row-reverse.shadow-sm.rounded-md {
+  justify-content: center; /* 中央揃えにする場合 */
+  padding: 10px; /* パディングを追加 */
+}
+
+.relative.inline-flex.items-center.px-4.py-2.-ml-px.text-sm.font-medium {
+  margin: 0 5px; /* 左右のマージンを調整 */
+  border-radius: 4px; /* 角の丸みを調整 */
+}
+.hover\:text-gray-400, .focus\:ring-gray-300, .active\:bg-gray-100 {
+  transition: all 0.3s ease; /* スムーズな遷移効果 */
+}

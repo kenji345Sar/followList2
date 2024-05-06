@@ -1,3 +1,4 @@
+
 <table>
     <thead>
         <tr>
@@ -22,3 +23,5 @@
         @endforeach
     </tbody>
 </table>
+
+{{ $relations->links() }}
